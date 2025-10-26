@@ -1,6 +1,7 @@
 # %%
 # ev_sales_app.py
 # 🚗 Electric Vehicle (EV) Sales Forecasting App
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,11 +9,10 @@ import joblib
 import matplotlib.pyplot as plt
 import seaborn as sns
 from prophet import Prophet
-import os, requests
+import os
 
 # %%
 # 🔹 Load models (auto-download from Google Drive if missing)
-
 def download_from_drive(file_id, save_path):
     """Download file from Google Drive by file ID using gdown"""
     import gdown
@@ -46,13 +46,18 @@ except Exception as e:
     st.error(f"❌ Error loading Prophet model: {e}")
     model_prophet = None
 
-
 # %%
-# 🔹 Load dataset
-df = pd.read_csv("C:/Users/kalay/OneDrive/Desktop/unified p/Electric Vehicle Sales by State in India.csv")
-df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-df['Year'] = df['Date'].dt.year
-df['Month_Name'] = df['Date'].dt.month_name()
+# 🔹 Load dataset safely
+csv_path = "Electric Vehicle Sales by State in India.csv"
+
+if not os.path.exists(csv_path):
+    st.error("❌ Dataset not found! Please make sure the CSV file is uploaded to the app directory.")
+    st.stop()
+else:
+    df = pd.read_csv(csv_path)
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+    df['Year'] = df['Date'].dt.year
+    df['Month_Name'] = df['Date'].dt.month_name()
 
 # %%
 # --- Streamlit UI ---
@@ -71,7 +76,7 @@ filtered_df = df[(df['State'] == state) & (df['Vehicle_Category'] == category)]
 
 # 📈 EV Sales Trend
 st.subheader(f"📊 EV Sales Trend for {state} ({category})")
-fig, ax = plt.subplots(figsize=(10,4))
+fig, ax = plt.subplots(figsize=(10, 4))
 sns.lineplot(data=filtered_df, x='Date', y='EV_Sales_Quantity', ax=ax, color='teal')
 ax.set_title(f"EV Sales Trend: {state} ({category})")
 st.pyplot(fig)
@@ -93,8 +98,8 @@ if len(ts) > 10:
 
     # 🔹 Display future predictions table
     st.write("### Forecasted Sales (Next 12 Months):")
-    forecast_df = forecast[['ds','yhat','yhat_lower','yhat_upper']].tail(12)
-    forecast_df.columns = ['Date','Predicted Sales','Lower Range','Upper Range']
+    forecast_df = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(12)
+    forecast_df.columns = ['Date', 'Predicted Sales', 'Lower Range', 'Upper Range']
     st.dataframe(forecast_df)
 else:
     st.warning("⚠️ Not enough data for forecasting this selection.")
@@ -104,20 +109,16 @@ else:
 st.subheader("🌟 Top Features Influencing EV Sales")
 
 try:
-    # Load feature names from training
     feature_names = joblib.load("model_features.pkl")
 
-    # Ensure length alignment
-    if len(model_rf.feature_importances_) == len(feature_names):
+    if model_rf is not None and len(model_rf.feature_importances_) == len(feature_names):
         feat_importance = pd.Series(model_rf.feature_importances_, index=feature_names).sort_values(ascending=False)
 
-        fig2, ax2 = plt.subplots(figsize=(8,4))
+        fig2, ax2 = plt.subplots(figsize=(8, 4))
         feat_importance.head(15).plot(kind='barh', ax=ax2, color='orange')
         ax2.set_title("🌟 Top 15 Features Influencing EV Sales")
         st.pyplot(fig2)
     else:
         st.warning("Feature count mismatch between model and dataset.")
-
 except Exception as e:
     st.info(f"Feature importance visualization unavailable for this data selection. ({e})")
-
