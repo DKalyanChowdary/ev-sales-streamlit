@@ -14,15 +14,13 @@ import os, requests
 # 🔹 Load models (auto-download from Google Drive if missing)
 
 def download_from_drive(file_id, save_path):
-    """Download file from Google Drive by file ID"""
-    url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    """Download file from Google Drive by file ID using gdown"""
+    import gdown
     if not os.path.exists(save_path):
         with st.spinner(f"⬇️ Downloading {save_path} from Google Drive..."):
             try:
-                response = requests.get(url)
-                response.raise_for_status()
-                with open(save_path, "wb") as f:
-                    f.write(response.content)
+                url = f"https://drive.google.com/uc?id={file_id}"
+                gdown.download(url, save_path, quiet=False)
                 st.success(f"✅ {save_path} downloaded successfully.")
             except Exception as e:
                 st.error(f"❌ Failed to download {save_path}: {e}")
@@ -36,8 +34,17 @@ download_from_drive(EV_MODEL_ID, "ev_sales_model.pkl")
 download_from_drive(FORECAST_MODEL_ID, "forecast_model.pkl")
 
 # 🔹 Load models after download
-model_rf = joblib.load("ev_sales_model.pkl")
-model_prophet = joblib.load("forecast_model.pkl")
+try:
+    model_rf = joblib.load("ev_sales_model.pkl")
+except Exception as e:
+    st.error(f"❌ Error loading Random Forest model: {e}")
+    model_rf = None
+
+try:
+    model_prophet = joblib.load("forecast_model.pkl")
+except Exception as e:
+    st.error(f"❌ Error loading Prophet model: {e}")
+    model_prophet = None
 
 
 # %%
@@ -113,3 +120,4 @@ try:
 
 except Exception as e:
     st.info(f"Feature importance visualization unavailable for this data selection. ({e})")
+
